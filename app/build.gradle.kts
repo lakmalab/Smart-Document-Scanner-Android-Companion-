@@ -49,6 +49,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.runtime.android)
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
     implementation("androidx.camera:camera-lifecycle:1.3.1")
@@ -58,5 +59,18 @@ dependencies {
 
 // Optional: Kotlin coroutines for background work (recommended)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("org.opencv:opencv:4.9.0")
+    implementation("androidx.sqlite:sqlite:2.1.0")
+    implementation("com.healthmarketscience.jackcess:jackcess:3.0.1")
+    implementation("com.leinardi.android:speed-dial:3.2.0")
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+    implementation(libs.play.services.mlkit.document.scanner)
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("io.getstream:photoview:1.0.2")
 
 }
