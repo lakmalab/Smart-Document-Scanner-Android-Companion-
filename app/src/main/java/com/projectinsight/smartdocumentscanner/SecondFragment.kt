@@ -25,6 +25,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.projectinsight.smartdocumentscanner.databinding.FragmentSecondBinding
+import com.projectinsight.smartdocumentscanner.util.PreferencesManager
 import com.projectinsight.smartdocumentscanner.util.UserResponse
 import com.squareup.moshi.Moshi
 import okhttp3.Call
@@ -151,7 +152,9 @@ class SecondFragment : Fragment() {
             "token": "$token"
         }
     """.trimIndent()
-
+        PreferencesManager.saveToken(requireContext(), token)
+        PreferencesManager.saveUrl(requireContext(), postUrl)
+        PreferencesManager.saveUserID(requireContext(), id)
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val requestBody = jsonBody.toRequestBody(mediaType)
 
@@ -193,6 +196,8 @@ class SecondFragment : Fragment() {
                                 buttonSecond.setBackgroundColor(Color.parseColor("#7B5CFA"))
                                 binding.buttonSecond.isEnabled = true
                                 binding.userName.setText(user.name)
+                                PreferencesManager.saveUserName(requireContext(),user.name)
+                                PreferencesManager.saveUserID(requireContext(), user.userId)
                                 binding.userTitle.setText("Email : "+ user.email)
                             } else {
                                 Toast.makeText(requireContext(), "Invalid response format", Toast.LENGTH_SHORT).show()

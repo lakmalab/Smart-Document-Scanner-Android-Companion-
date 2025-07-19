@@ -2,31 +2,44 @@ package com.projectinsight.smartdocumentscanner
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
-import android.opengl.Visibility
 import android.os.Bundle
 import android.provider.MediaStore
-import android.renderscript.ScriptGroup
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.core.content.ContextCompat
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
+import com.google.android.material.textfield.TextInputEditText
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.projectinsight.smartdocumentscanner.databinding.FragmentThirdBinding
+import com.projectinsight.smartdocumentscanner.util.PreferencesManager
 import com.projectinsight.smartdocumentscanner.util.Scan
+import io.getstream.photoview.PhotoView
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.IOException
 
 /**
@@ -58,10 +71,13 @@ class ThirdFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-
         _binding = FragmentThirdBinding.inflate(inflater, container, false)
+        Glide.with(this)
+            .asGif()
+            .load(R.drawable.scann)
+            .into(binding.bookcopy)
+        binding.textView3.setText(PreferencesManager.getUserName(requireContext()))
         return binding.root
-
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -74,8 +90,12 @@ class ThirdFragment : Fragment() {
         binding.buttonCamera.setOnClickListener {
             CheckCameraPermissionAndOpenScanner()
         }
+        binding.ProfileButton.setOnClickListener {
+            profileDialog()
+
+        }
         binding.buttonSync.setOnClickListener {
-            findNavController().navigate(R.id.action_ThirdFragment_to_FirstFragment)
+
         }
     }
 
@@ -101,6 +121,129 @@ class ThirdFragment : Fragment() {
     private fun openGallery() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         startActivityForResult(intent, REQUEST_CODE_GALLERY)
+    }
+    private fun ocrResulDialog(titleText: String, ageText: String, image: Bitmap) {
+        // Inflate the custom layout
+        val dialogView = layoutInflater.inflate(R.layout.ocr_text_dialog, null)
+
+        // Set the message in the TextView
+        val messageTextView: TextInputEditText = dialogView.findViewById(R.id.ocrResult)
+        val messageTitleTextView: TextView = dialogView.findViewById(R.id.titilemsg)
+        val imageinput : PhotoView =  dialogView.findViewById(R.id.bookcopy)
+        messageTextView.setText(ageText)
+        messageTitleTextView.text = titleText
+        imageinput.setImageBitmap(image)
+        // Create the AlertDialog builder
+        val builder = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(true)
+
+        // Set up the action buttons
+        val action1: TextView = dialogView.findViewById(R.id.action1)
+        val action2: TextView = dialogView.findViewById(R.id.action2)
+
+
+        // Create and show the dialog
+        val dialog = builder.create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialog.show()
+
+        action1.setOnClickListener {
+            // Retrieve the OCR text and the current date
+            val ocrText = ageText // Assuming ageText contains the OCR result
+            val id = PreferencesManager.getUserID(requireContext())// Replace with the actual ID you want to send
+            val currentDate = System.currentTimeMillis() // Get the current date as a timestamp
+
+            // Create a JSON object
+            val jsonObject = """
+        {
+            "id": "$id",
+            "ocrText": "$ocrText",
+            "date": "$currentDate"
+        }
+    """.trimIndent()
+
+            // Send the POST request
+            sendPostRequest(PreferencesManager.getUrl(requireContext()).toString(), jsonObject)
+
+            dialog.dismiss()
+        }
+
+        action2.setOnClickListener {
+
+            dialog.dismiss()
+        }
+
+    }
+    private fun sendPostRequest(url: String, json: String) {
+        val client = OkHttpClient()
+
+        val requestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                e.printStackTrace()
+                // Handle failure
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful) {
+                    // Handle successful response
+                    val responseData = response.body?.string()
+                    // Process the response if needed
+                } else {
+                    // Handle unsuccessful response
+                }
+            }
+        })
+    }
+    private fun profileDialog() {
+        // Inflate the custom layout
+        val dialogView = layoutInflater.inflate(R.layout.profile_dialog, null)
+
+        // Set the message in the TextView
+        val messageTextView: TextView = dialogView.findViewById(R.id.userName)
+        val messageTitleTextView: TextView = dialogView.findViewById(R.id.userTitle)
+       // val imageinput : ImageView =  dialogView.findViewById(R.id.profileImage)
+        messageTextView.setText(PreferencesManager.getUserName(requireContext()))
+        messageTitleTextView.text = PreferencesManager.getUserID(requireContext()).toString()
+
+        // Create the AlertDialog builder
+        val builder = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(true)
+
+        // Set up the action buttons
+
+        val action3: TextView = dialogView.findViewById(R.id.action1)
+        val action1: Button = dialogView.findViewById(R.id.messageButton)
+        val action2: Button = dialogView.findViewById(R.id.connectButton)
+
+        // Create and show the dialog
+        val dialog = builder.create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialog.show()
+
+        action1.setOnClickListener {
+            findNavController().navigate(R.id.action_ThirdFragment_to_SecondFragment)
+            dialog.dismiss()
+        }
+        action3.setOnClickListener {
+
+            dialog.dismiss()
+        }
+        action2.setOnClickListener {
+
+            dialog.dismiss()
+        }
+
     }
     private val galleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -139,7 +282,7 @@ class ThirdFragment : Fragment() {
                     if (imageUri != null) {
                         try {
                             val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, imageUri)
-                            binding.bookcopy.setImageBitmap(bitmap)
+                            //binding.bookcopy.setImageBitmap(bitmap)
                             performImageProcessing(bitmap)
                         } catch (e: IOException) {
                             e.printStackTrace()
@@ -171,8 +314,8 @@ class ThirdFragment : Fragment() {
         val image = InputImage.fromBitmap(bitmap, 0)
         textRecognizer.process(image)
             .addOnSuccessListener { visionText ->
-
-                binding.ocrText.setText(visionText.text)
+                ocrResulDialog("Result",visionText.text,bitmap)
+                //binding.ocrText.setText(visionText.text)
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()

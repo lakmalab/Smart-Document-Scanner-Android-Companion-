@@ -5,6 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+
     android:padding="16dp"
     android:background="@android:color/transparent">
 
@@ -13,7 +14,10 @@
         android:id="@+id/cardView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="3dp"
+        android:layout_marginLeft="3dp"
+        android:layout_marginTop="3dp"
+        android:layout_marginEnd="3dp"
+        android:layout_marginBottom="20dp"
         app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
@@ -66,42 +70,48 @@
                             android:orientation="vertical"
                             android:padding="16dp">
 
-                            <LinearLayout
+                            <ScrollView
                                 android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:orientation="horizontal"
-                                android:paddingBottom="16dp">
+                                android:layout_height="wrap_content">
 
-                                <ScrollView
+                                <LinearLayout
                                     android:layout_width="match_parent"
-                                    android:layout_height="match_parent">
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical">
 
-                                    <LinearLayout
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/imagecard"
                                         android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="vertical" />
-                                </ScrollView>
+                                        android:layout_height="250dp"
+                                        android:layout_marginTop="10dp"
+                                        android:visibility="visible"
+                                        app:cardCornerRadius="5dp">
 
-                                <com.google.android.material.textfield.TextInputLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent">
+                                        <io.getstream.photoview.PhotoView
+                                            android:id="@+id/bookcopy"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="match_parent"
+                                            android:scaleType="centerCrop"
+                                            app:srcCompat="@drawable/scanloop" />
+                                    </androidx.cardview.widget.CardView>
 
-                                    <com.google.android.material.textfield.TextInputEditText
+                                    <com.google.android.material.textfield.TextInputLayout
                                         android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:hint="hint" />
-                                </com.google.android.material.textfield.TextInputLayout>
-                            </LinearLayout>
+                                        android:layout_height="match_parent">
+
+                                        <com.google.android.material.textfield.TextInputEditText
+                                            android:id="@+id/ocrResult"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:hint="OCR text" />
+                                    </com.google.android.material.textfield.TextInputLayout>
+                                </LinearLayout>
+                            </ScrollView>
 
                         </LinearLayout>
 
 
                     </com.google.android.material.card.MaterialCardView>
-
-                    <androidx.coordinatorlayout.widget.CoordinatorLayout
-                        android:id="@+id/about_fragment_holder"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
 
                 </LinearLayout>
 
