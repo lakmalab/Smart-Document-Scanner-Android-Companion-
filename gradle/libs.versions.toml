@@ -29,4 +29,4 @@ androidx-runtime-android = { group = "androidx.compose.runtime", name = "runtime
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

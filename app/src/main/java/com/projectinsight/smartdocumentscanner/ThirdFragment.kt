@@ -7,8 +7,10 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.opengl.Visibility
 import android.os.Bundle
 import android.provider.MediaStore
+import android.renderscript.ScriptGroup
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -42,6 +44,7 @@ class ThirdFragment : Fragment() {
         private const val REQUEST_CODE_GALLERY = 1002
         private const val REQUEST_CODE_DOCUMENT_SCAN = 123
     }
+
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -65,6 +68,7 @@ class ThirdFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.buttonFile.setOnClickListener {
+            binding.textCard.visibility == View.VISIBLE
             checkGalleryPermissionAndOpenGallery()
         }
         binding.buttonCamera.setOnClickListener {
@@ -135,7 +139,7 @@ class ThirdFragment : Fragment() {
                     if (imageUri != null) {
                         try {
                             val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, imageUri)
-                          //  bookcopy.setImageBitmap(bitmap)
+                            binding.bookcopy.setImageBitmap(bitmap)
                             performImageProcessing(bitmap)
                         } catch (e: IOException) {
                             e.printStackTrace()
@@ -168,6 +172,7 @@ class ThirdFragment : Fragment() {
         textRecognizer.process(image)
             .addOnSuccessListener { visionText ->
 
+                binding.ocrText.setText(visionText.text)
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()

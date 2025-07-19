@@ -2,6 +2,8 @@ package com.projectinsight.smartdocumentscanner
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -23,6 +25,19 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.projectinsight.smartdocumentscanner.databinding.FragmentSecondBinding
+import com.projectinsight.smartdocumentscanner.util.UserResponse
+import com.squareup.moshi.Moshi
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import java.io.IOException
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+
+
 
 class SecondFragment : Fragment() {
 
@@ -30,7 +45,7 @@ class SecondFragment : Fragment() {
     private val binding get() = _binding!!
     private var isScanned = false
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
-    private lateinit var ipText: TextView
+    private var Url = ""
     private var scanner = BarcodeScanning.getClient()
 
     override fun onCreateView(
@@ -102,10 +117,9 @@ class SecondFragment : Fragment() {
                         val rawValue = barcode.rawValue
                         rawValue?.let {
                             Log.d("QRScanner", "QR Code: $it")
-                            binding.textView.setText("Connected IP: $it")
-                            Toast.makeText(requireContext(), "Scanned: $it", Toast.LENGTH_SHORT).show()
                             isScanned = true
                             scanner.close()
+                            sendJsonToScannedUrl(it)
                         }
                     }
                 }
@@ -119,6 +133,84 @@ class SecondFragment : Fragment() {
             imageProxy.close()
         }
     }
+    private fun sendJsonToScannedUrl(scannedUrl: String) {
+        val client = OkHttpClient()
+
+        val uri = Uri.parse(scannedUrl)
+        val token = uri.getQueryParameter("token") ?: run {
+            Toast.makeText(requireContext(), "Invalid QR code: No token", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 🔹 The backend endpoint is embedded in the scanned URL
+        val postUrl = scannedUrl.substringBefore("?")
+        Log.e("postUrl", "Server error: ${postUrl}")
+        Url = postUrl.toString()
+        val jsonBody = """
+        {
+            "token": "$token"
+        }
+    """.trimIndent()
+
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(postUrl)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (isAdded) {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(requireContext(), "Connection failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Log.e("Connection", "Server error: ${e.message}")
+                    }
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful) {
+                    response.body?.let { responseBody ->
+                        val moshi = Moshi.Builder().build()
+                        val adapter = moshi.adapter(UserResponse::class.java)
+
+                        val user = adapter.fromJson(responseBody.string())
+                        requireActivity().runOnUiThread {
+                            if (user != null) {
+                                val buttonSecond = binding.buttonSecond
+                                val status = binding.tvStatus
+                                binding.qrCameraPreview.visibility =  View.GONE
+                                binding.userCard.visibility =  View.VISIBLE
+                                binding.imageView.setImageResource(android.R.drawable.ic_menu_directions)
+                                binding.textView.text = Url
+                                status.text = "connected"
+                                status.setTextColor(Color.GREEN)
+                                binding.tvStatusdot.setBackgroundColor(Color.GREEN)
+                                binding.textView.setTextColor(Color.CYAN)
+
+                                buttonSecond.setBackgroundColor(Color.parseColor("#7B5CFA"))
+                                binding.buttonSecond.isEnabled = true
+                                binding.userName.setText(user.name)
+                                binding.userTitle.setText("Email : "+ user.email)
+                            } else {
+                                Toast.makeText(requireContext(), "Invalid response format", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } else {
+                    Log.e("Network", "Server error: ${response.code}")
+                    requireActivity().runOnUiThread {
+
+                        Toast.makeText(requireContext(), "Server error: ${response.code}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
