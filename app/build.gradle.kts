@@ -76,4 +76,6 @@ dependencies {
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("io.getstream:photoview:1.0.2")
     implementation("com.github.bumptech.glide:glide:4.14.2")
+    implementation("com.google.android.material:material:1.12.0")
+
 }

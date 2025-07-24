@@ -159,7 +159,7 @@ class SecondFragment : Fragment() {
         val requestBody = jsonBody.toRequestBody(mediaType)
 
         val request = Request.Builder()
-            .url(postUrl)
+            .url(postUrl + "/mobile/confirm")
             .post(requestBody)
             .build()
 

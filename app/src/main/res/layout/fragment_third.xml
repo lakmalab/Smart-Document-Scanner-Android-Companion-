@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFFFFF"
@@ -110,17 +111,20 @@
     </androidx.cardview.widget.CardView>
 
 
-    <TextView
-        android:id="@+id/tvDescription"
-        android:layout_width="wrap_content"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/templateDropdownLayout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:gravity="center"
-        android:text="Start Scanning ...."
-        android:textAlignment="viewStart"
-        android:textColor="#565555"
-        android:textSize="20sp"
-        android:textStyle="italic" />
+        android:hint="Select Template"
+        app:endIconMode="dropdown_menu">
+
+        <AutoCompleteTextView
+            android:id="@+id/templateDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
 
     <View
         android:layout_width="match_parent"
@@ -189,6 +193,7 @@
         android:layout_marginBottom="24dp"
         android:backgroundTint="#7B5CFA"
         android:text="Sync"
-        android:textColor="#FFFFFF" />
+        android:textColor="#FFFFFF"
+        tools:ignore="VisualLintButtonSize" />
 
 </LinearLayout>

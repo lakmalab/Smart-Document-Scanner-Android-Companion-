@@ -10,10 +10,12 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -30,6 +32,7 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.projectinsight.smartdocumentscanner.databinding.FragmentThirdBinding
+import com.projectinsight.smartdocumentscanner.model.TemplateItem
 import com.projectinsight.smartdocumentscanner.util.PreferencesManager
 import com.projectinsight.smartdocumentscanner.util.Scan
 import io.getstream.photoview.PhotoView
@@ -40,7 +43,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import org.json.JSONException
+import org.json.JSONObject
 import java.io.IOException
+import kotlin.math.log
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -57,7 +63,9 @@ class ThirdFragment : Fragment() {
         private const val REQUEST_CODE_GALLERY = 1002
         private const val REQUEST_CODE_DOCUMENT_SCAN = 123
     }
-
+    private lateinit var dropdownAdapter: ArrayAdapter<String>
+    private val templateNameList = mutableListOf<String>()
+    private val templateIdMap = mutableMapOf<String, Int>()
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -82,7 +90,7 @@ class ThirdFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        fetchTemplateListFromApi()
         binding.buttonFile.setOnClickListener {
             binding.textCard.visibility == View.VISIBLE
             checkGalleryPermissionAndOpenGallery()
@@ -103,6 +111,86 @@ class ThirdFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+    private fun fetchTemplateListFromApi() {
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url(PreferencesManager.getUrl(requireContext()) + "/api/templates/by-user/${PreferencesManager.getUserID(requireContext())}")
+            .get()
+            .build()
+        Log.e("FetchTemplates", "Request: ${PreferencesManager.getUrl(requireContext()) + "/api/template/by-user/${PreferencesManager.getUserID(requireContext())}"}")
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                e.printStackTrace()
+                Log.e("FetchTemplates", "Request failed: ${e.message}")
+                requireActivity().runOnUiThread {
+                    Toast.makeText(requireContext(), "Failed to load templates", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val responseBody = response.body?.string()
+                Log.d("FetchTemplates", "Response code: ${response.code}")
+
+                if (response.isSuccessful && !responseBody.isNullOrBlank()) {
+                    try {
+                        Log.d("FetchTemplates", "Response body: $responseBody")
+                        val templateList = parseTemplateListJson(responseBody)
+
+                        activity?.runOnUiThread {
+                            Toast.makeText(requireContext(), "Templates loaded: ${templateList.size}", Toast.LENGTH_SHORT).show()
+                            updateDropdownWithTemplates(templateList)
+                        }
+
+                    } catch (e: JSONException) {
+                        e.printStackTrace()
+                        Log.e("FetchTemplates", "JSON Error: ${e.localizedMessage}")
+                        activity?.runOnUiThread {
+                            Toast.makeText(requireContext(), "JSON Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Log.e("FetchTemplates", "Failed to fetch templates: ${response.code} ${response.message}")
+                    activity?.runOnUiThread {
+                        Toast.makeText(requireContext(), "Failed to fetch templates", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+    private fun parseTemplateListJson(jsonString: String): List<TemplateItem> {
+        val jsonArray = org.json.JSONArray(jsonString)
+        val list = mutableListOf<TemplateItem>()
+
+        for (i in 0 until jsonArray.length()) {
+            val obj = jsonArray.getJSONObject(i)
+            val id = obj.getInt("templateId")
+            val name = obj.getString("templateName")
+            list.add(TemplateItem(id, name))
+        }
+
+        return list
+    }
+    private fun updateDropdownWithTemplates(templates: List<TemplateItem>) {
+        templateNameList.clear()
+        templateIdMap.clear()
+
+        for (template in templates) {
+            templateNameList.add(template.templateName)
+            templateIdMap[template.templateName] = template.templateId
+        }
+
+        dropdownAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, templateNameList)
+        binding.templateDropdown.setAdapter(dropdownAdapter)
+
+        binding.templateDropdown.setOnItemClickListener { parent, _, position, _ ->
+            val selectedName = parent.getItemAtPosition(position).toString()
+            val selectedId = templateIdMap[selectedName]
+            Toast.makeText(requireContext(), "Selected: $selectedName (ID: $selectedId)", Toast.LENGTH_SHORT).show()
+
+            PreferencesManager.setSelectedTemplateId(requireContext(), selectedId!!)
+        }
+    }
+
     @Composable
     private fun CheckCameraPermissionAndOpenScanner() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -139,8 +227,8 @@ class ThirdFragment : Fragment() {
             .setCancelable(true)
 
         // Set up the action buttons
-        val action1: TextView = dialogView.findViewById(R.id.action1)
-        val action2: TextView = dialogView.findViewById(R.id.action2)
+        val action2: TextView = dialogView.findViewById(R.id.action1)
+        val action1: TextView = dialogView.findViewById(R.id.action2)
 
 
         // Create and show the dialog
@@ -154,19 +242,18 @@ class ThirdFragment : Fragment() {
             val ocrText = ageText // Assuming ageText contains the OCR result
             val id = PreferencesManager.getUserID(requireContext())// Replace with the actual ID you want to send
             val currentDate = System.currentTimeMillis() // Get the current date as a timestamp
+            val templateid = PreferencesManager.getSelectedTemplateId(requireContext())
+            Log.e("SendPostRequest", "Request: ${templateid}")
+            val jsonObject = JSONObject().apply {
+                put("userId", id)  // Use the real ID here
+                put("templateId", templateid)
+                put("rawText", ocrText)
+            }
 
-            // Create a JSON object
-            val jsonObject = """
-        {
-            "id": "$id",
-            "ocrText": "$ocrText",
-            "date": "$currentDate"
-        }
-    """.trimIndent()
-
+            var url = PreferencesManager.getUrl(requireContext())+"/api/ocr/submit"
             // Send the POST request
-            sendPostRequest(PreferencesManager.getUrl(requireContext()).toString(), jsonObject)
-
+            sendPostRequest(url, jsonObject.toString())
+            Log.e("SendPostRequest", "Request: ${url}")
             dialog.dismiss()
         }
 
@@ -189,19 +276,30 @@ class ThirdFragment : Fragment() {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 e.printStackTrace()
-                // Handle failure
+                Log.e("SendPostRequest", "Request failed: ${e.message}")
+                requireActivity().runOnUiThread {
+                    showMessage("Request failed: ${e.message}")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                if (response.isSuccessful) {
-                    // Handle successful response
-                    val responseData = response.body?.string()
-                    // Process the response if needed
-                } else {
-                    // Handle unsuccessful response
+                requireActivity().runOnUiThread {
+                    if (response.isSuccessful) {
+                        val responseData = response.body?.string()
+                        Log.d("SendPostRequest", "Response successful: $responseData")
+                        showMessage("Response received: $responseData")
+                    } else {
+                        Log.e("SendPostRequest", "Response failed: ${response.code} ${response.message}")
+                        showMessage("Response failed: ${response.code} ${response.message}")
+                    }
                 }
             }
         })
+    }
+
+    private fun showMessage(message: String) {
+        // Implementation to show a message (e.g., Toast, Snackbar, etc.)
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
     private fun profileDialog() {
         // Inflate the custom layout

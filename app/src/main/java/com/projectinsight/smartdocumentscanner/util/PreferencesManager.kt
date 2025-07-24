@@ -40,4 +40,14 @@ object PreferencesManager {
     fun getUrl(context: Context): String? {
         return getSharedPreferences(context).getString(URL_KEY, null)
     }
+    fun setSelectedTemplateId(context: Context, id: Int) {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putInt("selected_template_id", id).apply()
+    }
+
+    fun getSelectedTemplateId(context: Context): Int {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return prefs.getInt("selected_template_id", -1)
+    }
+
 }
