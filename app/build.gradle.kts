@@ -40,7 +40,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -77,5 +76,7 @@ dependencies {
     implementation("io.getstream:photoview:1.0.2")
     implementation("com.github.bumptech.glide:glide:4.14.2")
     implementation("com.google.android.material:material:1.12.0")
-
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 }

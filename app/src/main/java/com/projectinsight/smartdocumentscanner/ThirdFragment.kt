@@ -24,7 +24,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.textfield.TextInputEditText
 import com.google.mlkit.vision.common.InputImage
@@ -32,10 +35,14 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.projectinsight.smartdocumentscanner.databinding.FragmentThirdBinding
+import com.projectinsight.smartdocumentscanner.db.OCRDatabase
+import com.projectinsight.smartdocumentscanner.model.OCRRecord
 import com.projectinsight.smartdocumentscanner.model.TemplateItem
+import com.projectinsight.smartdocumentscanner.util.OcrResultsAdapter
 import com.projectinsight.smartdocumentscanner.util.PreferencesManager
 import com.projectinsight.smartdocumentscanner.util.Scan
 import io.getstream.photoview.PhotoView
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -63,6 +70,21 @@ class ThirdFragment : Fragment() {
         private const val REQUEST_CODE_GALLERY = 1002
         private const val REQUEST_CODE_DOCUMENT_SCAN = 123
     }
+    // New vars to hold OCR info
+    private var currentOcrText: String = ""
+    private var currentTemplateName: String = "None"
+    private var currentOcrDate: String = "-"
+
+    // UI Elements for OCR Card
+    private lateinit var tvOcrResultText: TextView
+    private lateinit var tvSelectedTemplate: TextView
+    private lateinit var tvOcrDate: TextView
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var ocrResultsAdapter: OcrResultsAdapter
+    private val ocrResultsList = mutableListOf<OCRRecord>()
+    // Floating Buttons
+    private lateinit var buttonCamera: androidx.cardview.widget.CardView
+    private lateinit var buttonGallery: androidx.cardview.widget.CardView
     private lateinit var dropdownAdapter: ArrayAdapter<String>
     private val templateNameList = mutableListOf<String>()
     private val templateIdMap = mutableMapOf<String, Int>()
@@ -85,26 +107,66 @@ class ThirdFragment : Fragment() {
             .load(R.drawable.scann)
             .into(binding.bookcopy)
         binding.textView3.setText(PreferencesManager.getUserName(requireContext()))
+
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         fetchTemplateListFromApi()
-        binding.buttonFile.setOnClickListener {
-            binding.textCard.visibility == View.VISIBLE
-            checkGalleryPermissionAndOpenGallery()
-        }
-        binding.buttonCamera.setOnClickListener {
-            CheckCameraPermissionAndOpenScanner()
-        }
+
         binding.ProfileButton.setOnClickListener {
             profileDialog()
 
         }
-        binding.buttonSync.setOnClickListener {
+        buttonCamera = binding.root.findViewById(R.id.buttonCamera)
+        buttonGallery = binding.root.findViewById(R.id.buttonGallery)
 
+        binding.textView3.setText(PreferencesManager.getUserName(requireContext()))
+        recyclerView = binding.root.findViewById(R.id.recyclerViewOcrResults)
+        ocrResultsAdapter = OcrResultsAdapter(ocrResultsList, { record ->
+            // Handle send JSON logic
+
+            val jsonObject = JSONObject().apply {
+                put("userId", PreferencesManager.getUserID(requireContext()))
+                put("templateId", PreferencesManager.getSelectedTemplateId(requireContext()))
+                put("rawText", record.ocrText)  // Use actual text if needed
+            }
+            var url = PreferencesManager.getUrl(requireContext())+"/api/ocr/submit"
+            // Send the POST request
+            sendPostRequest(url, jsonObject.toString())
+        }, { record ->
+            // Handle delete logic
+            lifecycleScope.launch {
+                OCRDatabase.getDatabase(requireContext()).ocrDao().delete(record)
+                ocrResultsList.remove(record)
+                ocrResultsAdapter.notifyDataSetChanged()
+            }
+        })
+        recyclerView.adapter = ocrResultsAdapter
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+
+        // Observe LiveData from the database
+        OCRDatabase.getDatabase(requireContext()).ocrDao().getAll().observe(viewLifecycleOwner) { records ->
+            ocrResultsList.clear()  // Clear old results
+            ocrResultsList.addAll(records)  // Add new records from the database
+            ocrResultsAdapter.notifyDataSetChanged()  // Notify the adapter
         }
+        setupFloatingButtons()
+
+    }
+    private fun setupFloatingButtons() {
+        buttonCamera.setOnClickListener {
+            CheckCameraPermissionAndOpenScanner()
+        }
+        buttonGallery.setOnClickListener {
+            checkGalleryPermissionAndOpenGallery()
+        }
+    }
+    private fun updateOcrCard() {
+        tvOcrResultText.text = if (currentOcrText.isNotBlank()) currentOcrText else "No OCR result yet."
+        tvSelectedTemplate.text = "Selected Template: $currentTemplateName"
+        tvOcrDate.text = "Date: $currentOcrDate"
     }
 
     override fun onDestroyView() {
@@ -112,12 +174,22 @@ class ThirdFragment : Fragment() {
         _binding = null
     }
     private fun fetchTemplateListFromApi() {
+        val url = PreferencesManager.getUrl(requireContext()) + "/api/templates/by-user/${PreferencesManager.getUserID(requireContext())}"
+
+        // Validate the URL
+        if (url.isBlank() || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+            Log.e("FetchTemplates", "Invalid URL: $url")
+            Toast.makeText(requireContext(), "Invalid URL", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val client = OkHttpClient()
         val request = Request.Builder()
-            .url(PreferencesManager.getUrl(requireContext()) + "/api/templates/by-user/${PreferencesManager.getUserID(requireContext())}")
+            .url(url)
             .get()
             .build()
-        Log.e("FetchTemplates", "Request: ${PreferencesManager.getUrl(requireContext()) + "/api/template/by-user/${PreferencesManager.getUserID(requireContext())}"}")
+
+        Log.e("FetchTemplates", "Request: $url")
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 e.printStackTrace()
@@ -185,11 +257,12 @@ class ThirdFragment : Fragment() {
         binding.templateDropdown.setOnItemClickListener { parent, _, position, _ ->
             val selectedName = parent.getItemAtPosition(position).toString()
             val selectedId = templateIdMap[selectedName]
-            Toast.makeText(requireContext(), "Selected: $selectedName (ID: $selectedId)", Toast.LENGTH_SHORT).show()
-
             PreferencesManager.setSelectedTemplateId(requireContext(), selectedId!!)
+            currentTemplateName = selectedName
+            //updateOcrCard()
         }
     }
+
 
     @Composable
     private fun CheckCameraPermissionAndOpenScanner() {
@@ -408,12 +481,30 @@ class ThirdFragment : Fragment() {
             performOCRoldmethode(bitmap)
     }
     private fun performOCRoldmethode(bitmap: Bitmap) {
-
         val image = InputImage.fromBitmap(bitmap, 0)
         textRecognizer.process(image)
             .addOnSuccessListener { visionText ->
-                ocrResulDialog("Result",visionText.text,bitmap)
-                //binding.ocrText.setText(visionText.text)
+                currentOcrText = visionText.text
+                currentOcrDate = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date())
+
+                // Create a new OCRRecord
+                val record = OCRRecord(
+                    ocrText = currentOcrText,
+                    templateName = currentTemplateName,
+                    date = currentOcrDate
+                )
+
+                // Insert into database
+                lifecycleScope.launch {
+                    OCRDatabase.getDatabase(requireContext()).ocrDao().insert(record)
+
+                    // Add the record to the list and notify adapter
+                    ocrResultsList.add(record)  // Add to the local list
+                    ocrResultsAdapter.notifyItemInserted(ocrResultsList.size - 1)  // Notify adapter
+                }
+
+                // Optionally show dialog
+                ocrResulDialog("Result", currentOcrText, bitmap)
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
