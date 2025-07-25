@@ -152,9 +152,7 @@ class SecondFragment : Fragment() {
             "token": "$token"
         }
     """.trimIndent()
-        PreferencesManager.saveToken(requireContext(), token)
-        PreferencesManager.saveUrl(requireContext(), postUrl)
-        PreferencesManager.saveUserID(requireContext(), id)
+
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val requestBody = jsonBody.toRequestBody(mediaType)
 
@@ -175,6 +173,9 @@ class SecondFragment : Fragment() {
 
             override fun onResponse(call: Call, response: Response) {
                 if (response.isSuccessful) {
+                    PreferencesManager.saveToken(requireContext(), token)
+                    PreferencesManager.saveUrl(requireContext(), postUrl)
+                    PreferencesManager.saveUserID(requireContext(), id)
                     response.body?.let { responseBody ->
                         val moshi = Moshi.Builder().build()
                         val adapter = moshi.adapter(UserResponse::class.java)

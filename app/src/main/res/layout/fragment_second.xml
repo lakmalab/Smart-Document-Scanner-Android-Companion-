@@ -164,7 +164,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:backgroundTint="#333335"
-        android:enabled="true"
+        android:enabled="false"
         android:text="Scan Documents"
         android:textColor="#FFFFFF" />
 
