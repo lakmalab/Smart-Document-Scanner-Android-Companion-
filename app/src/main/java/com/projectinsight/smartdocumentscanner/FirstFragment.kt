@@ -37,7 +37,6 @@ class FirstFragment : Fragment() {
             if (token != null) {
                 findNavController().navigate(R.id.action_FirstFragment_to_ThirdFragment)
             } else {
-                // Optionally handle the case where the token is null
                 findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
             }
 

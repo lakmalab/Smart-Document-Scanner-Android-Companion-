@@ -9,19 +9,26 @@ object PreferencesManager {
     private const val URL_KEY = "url"
     private const val USER_NAME = "user"
     private const val USER_ID = "userID"
-
+    private const val JWTTOKEN_KEY = "jwttoken"
     private fun getSharedPreferences(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    fun saveToken(context: Context, token: String) {
+    fun saveJwtToken(context: Context, token: String) {
+        getSharedPreferences(context).edit().putString(JWTTOKEN_KEY, token).apply()
+    }
+    fun getJwtToken(context: Context): String? {
+        return getSharedPreferences(context).getString(JWTTOKEN_KEY, null)
+    }
+    fun saveToken(context: Context, token: String?) {
         getSharedPreferences(context).edit().putString(TOKEN_KEY, token).apply()
     }
+
     fun saveUserName(context: Context, token: String) {
         getSharedPreferences(context).edit().putString(USER_NAME, token).apply()
     }
-    fun saveUserID(context: Context, token: Int) {
-        getSharedPreferences(context).edit().putInt(USER_ID, token).apply()
+    fun saveUserID(context: Context, token: Long) {
+        getSharedPreferences(context).edit().putInt(USER_ID, token.toInt()).apply()
     }
     fun getUserName(context: Context): String? {
         return getSharedPreferences(context).getString(USER_NAME, null)

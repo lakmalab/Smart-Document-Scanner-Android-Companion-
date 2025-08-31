@@ -1,6 +1,8 @@
 package com.projectinsight.smartdocumentscanner.util
 
 import android.app.AlertDialog
+import android.graphics.Bitmap
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +15,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.projectinsight.smartdocumentscanner.model.OCRRecord
 import com.projectinsight.smartdocumentscanner.R
 import com.projectinsight.smartdocumentscanner.ThirdFragment
+import io.getstream.photoview.PhotoView
 import org.json.JSONObject
 
 class OcrResultsAdapter(
@@ -40,6 +43,7 @@ class OcrResultsAdapter(
         holder.tvOcrDate.text = result.date
 
         holder.buttonView.setOnClickListener {
+           // ocrResulDialog("Result",  ocrResults.indexOf(position)., bitmap)
 
         }
         holder.buttonSendJson.setOnClickListener {

@@ -17,7 +17,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -41,6 +40,7 @@ import com.projectinsight.smartdocumentscanner.model.TemplateItem
 import com.projectinsight.smartdocumentscanner.util.OcrResultsAdapter
 import com.projectinsight.smartdocumentscanner.util.PreferencesManager
 import com.projectinsight.smartdocumentscanner.util.Scan
+import com.projectinsight.smartdocumentscanner.util.TokenInterceptor
 import io.getstream.photoview.PhotoView
 import kotlinx.coroutines.launch
 import okhttp3.Call
@@ -53,7 +53,6 @@ import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
-import kotlin.math.log
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -183,7 +182,10 @@ class ThirdFragment : Fragment() {
             return
         }
 
-        val client = OkHttpClient()
+        val client = OkHttpClient.Builder()
+            .addInterceptor(TokenInterceptor(requireContext()))
+            .build()
+
         val request = Request.Builder()
             .url(url)
             .get()
@@ -337,7 +339,9 @@ class ThirdFragment : Fragment() {
 
     }
     private fun sendPostRequest(url: String, json: String) {
-        val client = OkHttpClient()
+        val client = OkHttpClient.Builder()
+            .addInterceptor(TokenInterceptor(requireContext()))
+            .build()
 
         val requestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
 
@@ -362,8 +366,9 @@ class ThirdFragment : Fragment() {
                         Log.d("SendPostRequest", "Response successful: $responseData")
                         showMessage("Response received: $responseData")
                     } else {
-                        Log.e("SendPostRequest", "Response failed: ${response.code} ${response.message}")
-                        showMessage("Response failed: ${response.code} ${response.message}")
+                        val errorBody = response.body?.string() ?: "No error body"
+                        Log.e("SendPostRequest", "Response failed: ${response.code} ${response.message} - $errorBody")
+                        showMessage("Response failed: ${response.code} ${response.message} - $errorBody")
                     }
                 }
             }
@@ -403,6 +408,9 @@ class ThirdFragment : Fragment() {
         dialog.show()
 
         action1.setOnClickListener {
+            PreferencesManager.saveUserID(requireContext() ,0)
+            PreferencesManager.saveUserName(requireContext() ,"")
+            PreferencesManager.saveToken(requireContext() ,null)
             findNavController().navigate(R.id.action_ThirdFragment_to_SecondFragment)
             dialog.dismiss()
         }

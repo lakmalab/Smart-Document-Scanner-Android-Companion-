@@ -98,6 +98,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:background="#F8F3F3"
+                app:cardBackgroundColor="#FBFBFB"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="8dp">
 
@@ -129,8 +131,8 @@
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
-            app:cardCornerRadius="36dp"
-            app:cardElevation="12dp">
+            app:cardBackgroundColor="#470288D1"
+            app:cardCornerRadius="36dp">
 
             <ImageView
                 android:layout_width="40dp"
@@ -146,8 +148,8 @@
             android:layout_height="72dp"
             android:clickable="true"
             android:focusable="true"
-            app:cardCornerRadius="36dp"
-            app:cardElevation="12dp">
+            app:cardBackgroundColor="#DC9AF8"
+            app:cardCornerRadius="36dp">
 
             <ImageView
                 android:layout_width="40dp"

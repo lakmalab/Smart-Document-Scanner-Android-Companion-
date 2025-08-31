@@ -1,6 +1,7 @@
 package com.projectinsight.smartdocumentscanner
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
@@ -9,24 +10,20 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.projectinsight.smartdocumentscanner.databinding.FragmentSecondBinding
+import com.projectinsight.smartdocumentscanner.model.JwtUserResponse
 import com.projectinsight.smartdocumentscanner.util.PreferencesManager
-import com.projectinsight.smartdocumentscanner.util.UserResponse
 import com.squareup.moshi.Moshi
 import okhttp3.Call
 import okhttp3.Callback
@@ -34,7 +31,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
-import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -174,36 +170,42 @@ class SecondFragment : Fragment() {
             override fun onResponse(call: Call, response: Response) {
                 if (response.isSuccessful) {
                     PreferencesManager.saveToken(requireContext(), token)
-                    PreferencesManager.saveUrl(requireContext(), postUrl)
-                    PreferencesManager.saveUserID(requireContext(), id)
                     response.body?.let { responseBody ->
-                        val moshi = Moshi.Builder().build()
-                        val adapter = moshi.adapter(UserResponse::class.java)
+                        val moshi = Moshi.Builder()
+                            .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+                            .build()
+                        val adapter = moshi.adapter(JwtUserResponse::class.java)
+                        val jwtResponse = adapter.fromJson(responseBody.string())
 
-                        val user = adapter.fromJson(responseBody.string())
                         requireActivity().runOnUiThread {
-                            if (user != null) {
+                            if (jwtResponse != null && jwtResponse.user != null) {
+                                val user = jwtResponse.user
+                                // Save JWT token instead of pairing token
+                                PreferencesManager.saveJwtToken(requireContext(), jwtResponse.token)
+                                PreferencesManager.saveUrl(requireContext(), postUrl)
+                                PreferencesManager.saveUserID(requireContext(), user.userId)
+                                PreferencesManager.saveUserName(requireContext(), user.name)
+
+                                // Update UI
                                 val buttonSecond = binding.buttonSecond
                                 val status = binding.tvStatus
-                                binding.qrCameraPreview.visibility =  View.GONE
-                                binding.userCard.visibility =  View.VISIBLE
+                                binding.qrCameraPreview.visibility = View.GONE
+                                binding.userCard.visibility = View.VISIBLE
                                 binding.imageView.setImageResource(android.R.drawable.ic_menu_directions)
                                 binding.textView.text = Url
                                 status.text = "connected"
                                 status.setTextColor(Color.GREEN)
                                 binding.tvStatusdot.setBackgroundColor(Color.GREEN)
                                 binding.textView.setTextColor(Color.CYAN)
-
                                 buttonSecond.setBackgroundColor(Color.parseColor("#7B5CFA"))
                                 binding.buttonSecond.isEnabled = true
                                 binding.userName.setText(user.name)
-                                PreferencesManager.saveUserName(requireContext(),user.name)
-                                PreferencesManager.saveUserID(requireContext(), user.userId)
-                                binding.userTitle.setText("Email : "+ user.email)
+                                binding.userTitle.setText("Email : ${user.email}")
                             } else {
                                 Toast.makeText(requireContext(), "Invalid response format", Toast.LENGTH_SHORT).show()
                             }
                         }
+
                     }
                 } else {
                     Log.e("Network", "Server error: ${response.code}")
@@ -232,4 +234,10 @@ class SecondFragment : Fragment() {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
+}
+
+private fun PreferencesManager.saveJwtToken(
+    context: Context,
+    string: String
+) {
 }
